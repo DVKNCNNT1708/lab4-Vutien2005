@@ -35,7 +35,14 @@ jobs:
             fit4110/iot-ingestion:lab04
 
       - name: Wait for service health
-        run: npx wait-on http://localhost:8000/health --timeout 30000
+        run: |
+          if npx wait-on http://localhost:8000/health --timeout 60000; then
+            echo "Service is ready"
+          else
+            echo "Service did not become ready; collecting container logs"
+            docker logs fit4110-iot-lab04 || true
+            exit 1
+          fi
 
       - name: Run Newman against Docker container
         run: npm run test:local

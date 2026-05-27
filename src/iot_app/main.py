@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
+from http import HTTPStatus
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -110,15 +111,23 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     if isinstance(exc.detail, dict):
         problem = exc.detail
     else:
+        try:
+            default_title = HTTPStatus(exc.status_code).phrase
+        except Exception:
+            default_title = "HTTP Error"
         problem = build_problem(
             status_code=exc.status_code,
-            title=status.HTTP_STATUS_CODES.get(exc.status_code, "HTTP Error"),
+            title=default_title,
             detail=str(exc.detail),
             instance=str(request.url.path),
         )
 
     problem.setdefault("status", exc.status_code)
-    problem.setdefault("title", status.HTTP_STATUS_CODES.get(exc.status_code, "HTTP Error"))
+    try:
+        default_title = HTTPStatus(exc.status_code).phrase
+    except Exception:
+        default_title = "HTTP Error"
+    problem.setdefault("title", default_title)
     problem.setdefault("type", "about:blank")
     problem.setdefault("detail", "Request failed")
     problem.setdefault("instance", str(request.url.path))
