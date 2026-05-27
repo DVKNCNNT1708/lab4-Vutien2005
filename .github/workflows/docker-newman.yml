@@ -36,7 +36,7 @@ jobs:
 
       - name: Wait for service health
         run: |
-          if npx wait-on http://localhost:8000/health --timeout 60000; then
+          if npx wait-on http://localhost:8000/health --http-method GET --timeout 60000; then
             echo "Service is ready"
           else
             echo "Service did not become ready; collecting container logs"
