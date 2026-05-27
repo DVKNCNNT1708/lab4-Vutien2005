@@ -205,6 +205,12 @@ def health() -> HealthResponse:
     )
 
 
+@app.head("/health", include_in_schema=False)
+def health_head() -> Response:
+    # Return 200 OK for HEAD requests (no body) so health-checkers that use HEAD succeed.
+    return Response(status_code=200)
+
+
 @app.post(
     "/readings",
     response_model=SensorReadingCreated,
