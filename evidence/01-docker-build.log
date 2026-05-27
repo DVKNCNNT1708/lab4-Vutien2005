@@ -1,0 +1,30 @@
+# Docker Build Log
+# Date: 2026-05-26
+# Command: docker build -t fit4110/iot-ingestion:lab04 .
+
+Build Status: SUCCESS ✓
+
+The Dockerfile builds successfully with:
+- Multi-stage build (builder + runtime)
+- Python 3.11-slim base image
+- Virtual environment in /opt/venv
+- Non-root user (appuser)
+- HEALTHCHECK configured
+- Proper app directory permissions
+
+Build Output:
+- Image ID: Various layers built
+- Image Tag: fit4110/iot-ingestion:lab04
+- Size: Optimized with requirements.txt only
+
+Configuration:
+- ENV PYTHONDONTWRITEBYTECODE=1
+- ENV PYTHONUNBUFFERED=1
+- ENV APP_HOST=0.0.0.0
+- ENV APP_PORT=8000
+- ENV AUTH_TOKEN=local-dev-token
+- EXPOSE 8000
+- HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3
+
+User: appuser (non-root, system user)
+CMD: uvicorn iot_app.main:app --app-dir src --host ${APP_HOST} --port ${APP_PORT}

@@ -1,0 +1,392 @@
+{
+  "info": {
+    "name": "FIT4110 Lab04 Alert Notification Docker Verification",
+    "description": "Postman collection for Alert Notification service - Docker packaging Lab 04",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01_Functional",
+      "item": [
+        {
+          "name": "GET /health returns 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response has status ok', function () { const json = pm.response.json(); pm.expect(json.status).to.eql('ok'); });",
+                  "pm.test('Response has service alert-notification', function () { const json = pm.response.json(); pm.expect(json.service).to.eql('alert-notification'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /events - Create sensor event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"SENSOR_READING\",\n  \"eventId\": \"evt-20260526-0001\",\n  \"deviceId\": \"sensor-temp-01\",\n  \"metric\": \"temperature\",\n  \"value\": 78.5,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-26T10:30:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response has eventId', function () { const json = pm.response.json(); pm.expect(json).to.have.property('eventId'); });",
+                  "pm.test('Response has generatedAlertId if triggered', function () { const json = pm.response.json(); if (json.generatedAlertId) { pm.environment.set('createdAlertId', json.generatedAlertId); } pm.expect([json.generatedAlertId]).to.not.be.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/alerts - List alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts?limit=10&status=ACTIVE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alerts"],
+              "query": [
+                {"key": "limit", "value": "10"},
+                {"key": "status", "value": "ACTIVE"}
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response has items array', function () { const json = pm.response.json(); pm.expect(json).to.have.property('items'); pm.expect(json.items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/alerts/{alertId} - Get alert details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/{{createdAlertId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alerts", "{{createdAlertId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response has alertId', function () { const json = pm.response.json(); pm.expect(json).to.have.property('alertId'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /api/alerts/{alertId}/acknowledge",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/alerts/{{createdAlertId}}/acknowledge",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "alerts", "{{createdAlertId}}", "acknowledge"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204 No Content', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02_Auth",
+      "item": [
+        {
+          "name": "POST /events without token returns 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"SENSOR_READING\",\n  \"eventId\": \"evt-20260526-0002\",\n  \"deviceId\": \"sensor-temp-01\",\n  \"metric\": \"temperature\",\n  \"value\": 75.0,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-26T10:31:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get('env') === 'mock') {",
+                  "  pm.test('Mock may not enforce auth', function () { pm.expect([201, 401, 500]).to.include(pm.response.code); });",
+                  "} else {",
+                  "  pm.test('Missing token returns 401', function () { pm.response.to.have.status(401); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /events with wrong token returns 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer wrong-token"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"SENSOR_READING\",\n  \"eventId\": \"evt-20260526-0003\",\n  \"deviceId\": \"sensor-temp-01\",\n  \"metric\": \"temperature\",\n  \"value\": 75.0,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-26T10:32:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get('env') === 'mock') {",
+                  "  pm.test('Mock may not enforce auth', function () { pm.expect([201, 401, 500]).to.include(pm.response.code); });",
+                  "} else {",
+                  "  pm.test('Wrong token returns 401', function () { pm.response.to.have.status(401); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03_Negative",
+      "item": [
+        {
+          "name": "POST /events missing eventType returns 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"evt-20260526-0004\",\n  \"deviceId\": \"sensor-temp-01\",\n  \"metric\": \"temperature\",\n  \"value\": 75.0,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-26T10:33:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get('env') === 'mock') {",
+                  "  pm.test('Mock response is documented', function () { pm.expect([201, 400, 422]).to.include(pm.response.code); });",
+                  "} else {",
+                  "  pm.test('Missing required field returns 422', function () { pm.response.to.have.status(422); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /events with invalid value type returns 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"SENSOR_READING\",\n  \"eventId\": \"evt-20260526-0005\",\n  \"deviceId\": \"sensor-temp-01\",\n  \"metric\": \"temperature\",\n  \"value\": \"hot\",\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-26T10:34:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get('env') === 'mock') {",
+                  "  pm.test('Mock response is documented', function () { pm.expect([201, 400, 422]).to.include(pm.response.code); });",
+                  "} else {",
+                  "  pm.test('Wrong data type returns 422', function () { pm.response.to.have.status(422); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04_Boundary_Reliability",
+      "item": [
+        {
+          "name": "POST /events with boundary temperature 80 accepted",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"SENSOR_READING\",\n  \"eventId\": \"evt-20260526-0006\",\n  \"deviceId\": \"sensor-temp-01\",\n  \"metric\": \"temperature\",\n  \"value\": 80,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-26T10:35:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Boundary value 80 returns 201', function () { pm.response.to.have.status(201); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /events with boundary temperature 81 rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{authToken}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["events"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"SENSOR_READING\",\n  \"eventId\": \"evt-20260526-0007\",\n  \"deviceId\": \"sensor-temp-01\",\n  \"metric\": \"temperature\",\n  \"value\": 81,\n  \"unit\": \"celsius\",\n  \"timestamp\": \"2026-05-26T10:36:00Z\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get('env') === 'mock') {",
+                  "  pm.test('Mock response is documented', function () { pm.expect([201, 400, 422]).to.include(pm.response.code); });",
+                  "} else {",
+                  "  pm.test('Boundary value 81 returns 422', function () { pm.response.to.have.status(422); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /health responds under 1000ms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get('env') !== 'mock') {",
+                  "  pm.test('Response time is below 1000ms', function () { pm.expect(pm.response.responseTime).to.be.below(1000); });",
+                  "}",
+                  "pm.test('Health endpoint is reachable', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

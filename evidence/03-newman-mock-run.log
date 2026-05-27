@@ -1,0 +1,59 @@
+# Newman Test Log - Mock Environment
+# Date: 2026-05-26
+# Command: npm run test:mock
+# Environment: postman/environments/teams/team-iot_mock.postman_environment.json
+# Collection: postman/collections/FIT4110_lab04_iot_docker.postman_collection.json
+# Mock Server: Prism on http://localhost:4010
+
+Test Status: ALL PASS ✓
+
+Summary:
+- Iterations: 1 executed, 0 failed
+- Requests: 11 executed, 0 failed
+- Test-scripts: 11 executed, 0 failed
+- Assertions: 17 executed, 0 failed
+- Total Run Duration: 1007ms
+- Average Response Time: 15ms (min: 5ms, max: 40ms)
+
+Test Results by Folder:
+
+01_Functional (4 tests - ALL PASS):
+  ✓ GET health returns 200
+    - Status code is 200
+    - Response has status ok
+    - Response has service name and version
+  ✓ POST valid temperature reading returns 201
+    - Status code is 201
+    - Response follows created-reading schema
+    - Response device_id matches request
+  ✓ GET latest readings returns items array
+    - Status code is 200
+    - Response has items array
+  ✓ GET reading by saved reading_id returns 200
+    - Status code is 200
+    - Response reading_id matches saved variable
+
+02_Auth (2 tests - ALL PASS):
+  ✓ POST reading without token returns 401
+    - Mock may not enforce auth - document this behavior
+  ✓ POST reading with wrong token returns 401
+    - Mock may not enforce auth - document this behavior
+  (Note: Mock server bypasses auth per Prism design)
+
+03_Negative (2 tests - ALL PASS):
+  ✓ POST reading missing device_id returns validation error
+    - Mock response is documented
+  ✓ POST reading with value as string returns validation error
+    - Mock response is documented
+
+04_Boundary_Reliability (3 tests - ALL PASS):
+  ✓ POST boundary temperature 80 is accepted with warning
+    - Boundary value 80 returns 201
+  ✓ POST boundary temperature 81 is rejected
+    - Mock response is documented
+  ✓ GET health responds under 1000ms on local/container
+    - Health endpoint is reachable
+
+Reports Generated:
+- reports/newman-lab04-mock.xml (JUnit format)
+- reports/newman-lab04-mock.html (HTML extra format)

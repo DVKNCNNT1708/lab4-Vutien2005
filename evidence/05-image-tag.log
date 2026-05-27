@@ -1,0 +1,40 @@
+# Image Tag & Registry Log
+# Date: 2026-05-26
+
+Image Build Information:
+
+Base Image Tag (Local):
+- fit4110/iot-ingestion:lab04
+
+Recommended Tag Convention (v0.1.0-team-iot):
+- Local: team-iot:v0.1.0-team-iot
+- Or: fit4110/iot-ingestion:v0.1.0-team-iot
+
+Command to Tag:
+```bash
+docker tag fit4110/iot-ingestion:lab04 team-iot:v0.1.0-team-iot
+```
+
+Optional: Push to Container Registry
+
+If using GitHub Container Registry (ghcr.io):
+```bash
+docker tag fit4110/iot-ingestion:lab04 ghcr.io/<username>/team-iot:v0.1.0-team-iot
+docker login ghcr.io
+docker push ghcr.io/<username>/team-iot:v0.1.0-team-iot
+```
+
+If using Docker Hub:
+```bash
+docker tag fit4110/iot-ingestion:lab04 <dockerhub-username>/team-iot:v0.1.0-team-iot
+docker login docker.io
+docker push <dockerhub-username>/team-iot:v0.1.0-team-iot
+```
+
+Image Details:
+- Base OS: python:3.11-slim
+- Multi-stage build: Yes (builder + runtime)
+- Size: Optimized (~300-400MB estimated)
+- User: appuser (non-root)
+- Ports: 8000 (uvicorn)
+- Health Check: Configured with 30s interval

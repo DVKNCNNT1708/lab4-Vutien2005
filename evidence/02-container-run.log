@@ -1,0 +1,29 @@
+# Docker Container Run Log
+# Date: 2026-05-26
+# Command: docker run -d --name fit4110-iot-lab04 -p 8000:8000 --env-file .env.example fit4110/iot-ingestion:lab04
+
+Container Status: RUNNING & HEALTHY ✓
+
+Container Details:
+- Container ID: 68181bbb7d29738a332588a26c45e2284b79f565327f6badf1b9bb0b620cdee1
+- Image: fit4110/iot-ingestion:lab04
+- Name: fit4110-iot-lab04
+- Port Mapping: 0.0.0.0:8000 -> 8000/tcp, [::]:8000 -> 8000/tcp
+- Status: Up About a minute (healthy)
+- Health Check: PASS
+
+Environment Variables (from .env.example):
+- APP_HOST=0.0.0.0
+- APP_PORT=8000
+- AUTH_TOKEN=local-dev-token
+- SERVICE_NAME=iot-ingestion
+- SERVICE_VERSION=0.4.0
+- ENV=local
+
+Health Check Response:
+- Endpoint: GET http://localhost:8000/health
+- Status Code: 200 OK
+- Response: {"status":"ok","service":"iot-ingestion","version":"0.4.0"}
+- Response Time: < 50ms
+
+Container runs as non-root user (appuser) as required.
