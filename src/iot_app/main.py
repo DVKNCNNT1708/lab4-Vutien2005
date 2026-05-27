@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 
-SERVICE_NAME = os.getenv("SERVICE_NAME", "iot-ingestion")
+SERVICE_NAME = os.getenv("SERVICE_NAME", "alert-notification")
 SERVICE_VERSION = os.getenv("SERVICE_VERSION", "0.4.0")
 AUTH_TOKEN = os.getenv("AUTH_TOKEN", "local-dev-token")
 
@@ -211,70 +211,141 @@ def health_head() -> Response:
     return Response(status_code=200)
 
 
+class EventType(str, Enum):
+    SENSOR_READING = "SENSOR_READING"
+
+
+class SensorEvent(BaseModel):
+    eventType: EventType
+    eventId: str
+    deviceId: str
+    metric: SensorMetric
+    value: float
+    unit: Optional[SensorUnit] = None
+    timestamp: str
+
+
+class AlertStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+
+
+class Alert(BaseModel):
+    alertId: str
+    eventId: str
+    deviceId: str
+    metric: SensorMetric
+    value: float
+    unit: Optional[SensorUnit] = None
+    timestamp: str
+    status: AlertStatus
+    created_at: str
+    acknowledged_at: Optional[str] = None
+
+
+ALERTS: List[Dict] = []
+
+
+def generate_alert_id() -> str:
+    return f"ALERT-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
+
+
 @app.post(
-    "/readings",
-    response_model=SensorReadingCreated,
+    "/events",
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(verify_bearer_token)],
     responses={
         401: {"model": ProblemDetails},
         422: {"model": ProblemDetails},
-        429: {"model": ProblemDetails},
     },
 )
-def create_reading(payload: SensorReadingCreate, response: Response) -> SensorReadingCreated:
-    if payload.metric == SensorMetric.temperature and payload.value >= 70:
-        response.headers["X-Warning"] = "high-temperature"
+def create_event(payload: SensorEvent) -> Dict:
+    if payload.value > 80:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=build_problem(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                title="Validation error",
+                detail="value must be less than or equal to 80",
+                instance="/events",
+                problem_type="https://smart-campus.local/problems/validation-error",
+            ),
+        )
 
-    reading_id = next_reading_id()
-    created_at = now_iso()
+    response = {"eventId": payload.eventId}
+    if payload.value >= 70:
+        alert_id = generate_alert_id()
+        alert = Alert(
+            alertId=alert_id,
+            eventId=payload.eventId,
+            deviceId=payload.deviceId,
+            metric=payload.metric,
+            value=payload.value,
+            unit=payload.unit,
+            timestamp=payload.timestamp,
+            status=AlertStatus.ACTIVE,
+            created_at=now_iso(),
+        )
+        ALERTS.append(alert.dict())
+        response["generatedAlertId"] = alert_id
 
-    item = {
-        "reading_id": reading_id,
-        "device_id": payload.device_id,
-        "metric": payload.metric.value,
-        "value": payload.value,
-        "unit": payload.unit.value if payload.unit else None,
-        "timestamp": payload.timestamp,
-        "created_at": created_at,
-    }
-    READINGS.append(item)
-
-    return SensorReadingCreated(
-        reading_id=reading_id,
-        device_id=payload.device_id,
-        metric=payload.metric,
-        accepted=True,
-        created_at=created_at,
-    )
+    return response
 
 
-@app.get("/readings/latest", dependencies=[Depends(verify_bearer_token)])
-def latest_readings(
-    device_id: Optional[str] = Query(default=None),
+@app.get(
+    "/api/alerts",
+    dependencies=[Depends(verify_bearer_token)],
+    responses={401: {"model": ProblemDetails}},
+)
+def list_alerts(
     limit: int = Query(default=10, ge=1, le=100),
+    status: AlertStatus = Query(default=AlertStatus.ACTIVE),
 ) -> Dict[str, List[Dict]]:
-    items = READINGS
-
-    if device_id:
-        items = [item for item in items if item["device_id"] == device_id]
-
-    return {"items": items[-limit:]}
+    filtered = [alert for alert in ALERTS if alert["status"] == status]
+    return {"items": filtered[:limit]}
 
 
-@app.get("/readings/{reading_id}", dependencies=[Depends(verify_bearer_token)])
-def get_reading(reading_id: str) -> Dict:
-    for item in READINGS:
-        if item["reading_id"] == reading_id:
-            return item
+@app.get(
+    "/api/alerts/{alert_id}",
+    dependencies=[Depends(verify_bearer_token)],
+    responses={401: {"model": ProblemDetails}, 404: {"model": ProblemDetails}},
+)
+def get_alert(alert_id: str) -> Dict:
+    for alert in ALERTS:
+        if alert["alertId"] == alert_id:
+            return alert
 
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=build_problem(
             status_code=status.HTTP_404_NOT_FOUND,
             title="Not Found",
-            detail=f"Reading {reading_id} does not exist",
-            instance=f"/readings/{reading_id}",
+            detail=f"Alert {alert_id} does not exist",
+            instance=f"/api/alerts/{alert_id}",
+            problem_type="https://smart-campus.local/problems/not-found",
+        ),
+    )
+
+
+@app.patch(
+    "/api/alerts/{alert_id}/acknowledge",
+    dependencies=[Depends(verify_bearer_token)],
+    responses={401: {"model": ProblemDetails}, 404: {"model": ProblemDetails}},
+)
+def acknowledge_alert(alert_id: str) -> Response:
+    for alert in ALERTS:
+        if alert["alertId"] == alert_id:
+            alert["status"] = AlertStatus.ACKNOWLEDGED
+            alert["acknowledged_at"] = now_iso()
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=build_problem(
+            status_code=status.HTTP_404_NOT_FOUND,
+            title="Not Found",
+            detail=f"Alert {alert_id} does not exist",
+            instance=f"/api/alerts/{alert_id}/acknowledge",
             problem_type="https://smart-campus.local/problems/not-found",
         ),
     )
